@@ -16,8 +16,21 @@ struct GameView: View {
                 .ignoresSafeArea()
 
             VStack {
-                HStack {
+                HStack(spacing: 14) {
                     Spacer()
+
+                    Button {
+                        scene.togglePause()
+                    } label: {
+                        Image(systemName: "pause.fill")
+                            .font(.system(size: 20, weight: .bold))
+                            .frame(width: 54, height: 54)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.white)
+                    .background(.black.opacity(0.28), in: Circle())
+                    .overlay(Circle().stroke(.white.opacity(0.35), lineWidth: 1))
+
                     Button {
                         scene.restartLevel()
                     } label: {
@@ -29,9 +42,10 @@ struct GameView: View {
                     .foregroundStyle(.white)
                     .background(.black.opacity(0.28), in: Circle())
                     .overlay(Circle().stroke(.white.opacity(0.35), lineWidth: 1))
-                    .padding(.trailing, 22)
-                    .padding(.top, 14)
+
+                    Spacer()
                 }
+                .padding(.top, 14)
 
                 Spacer()
 
@@ -48,8 +62,14 @@ struct GameView: View {
 
                     Spacer()
 
-                    HoldButton(systemName: "arrow.up") { isHeld in
-                        scene.setJumping(isHeld)
+                    HStack(spacing: 18) {
+                        HoldButton(systemName: "flame.fill") { isHeld in
+                            scene.setShooting(isHeld)
+                        }
+
+                        HoldButton(systemName: "arrow.up") { isHeld in
+                            scene.setJumping(isHeld)
+                        }
                     }
                 }
                 .padding(.horizontal, 28)
