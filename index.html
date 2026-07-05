@@ -21,9 +21,9 @@
     <div id="overlay" class="screen">
       <div class="panel">
         <h1>EMBER'S QUEST</h1>
-        <p class="subtitle">A fire-fox adventure</p>
+        <p class="subtitle">One soldier, one gun, a whole lot of zombies</p>
         <div class="hero-preview" id="hero-preview"></div>
-        <p class="hint">Arrow Keys / A D to move &nbsp;•&nbsp; Space / W / Up to jump &nbsp;•&nbsp; Hold jump for higher leaps<br>Stomp critters, collect gems, ride the flag pole home.</p>
+        <p class="hint">Arrow Keys / A D to move &nbsp;•&nbsp; Space / W / Up to jump &nbsp;•&nbsp; X to shoot<br>Gun down or stomp zombies, collect gems, defeat the boss behind each gate, ride the flag pole home.</p>
         <button id="start-btn">Start Game</button>
         <p class="hint small">P to pause &nbsp;•&nbsp; R to restart anytime</p>
       </div>
@@ -44,9 +44,17 @@
       </div>
     </div>
 
+    <div id="levelcomplete-screen" class="screen hidden">
+      <div class="panel">
+        <h1 id="levelcomplete-title">AREA CLEARED!</h1>
+        <p class="subtitle" id="levelcomplete-score">Score: 0</p>
+        <button id="next-level-btn">Next Level</button>
+      </div>
+    </div>
+
     <div id="win-screen" class="screen hidden">
       <div class="panel">
-        <h1>WORLD CLEARED!</h1>
+        <h1>THE HORDE IS DEAD!</h1>
         <p class="subtitle" id="win-score">Score: 0</p>
         <button id="win-retry-btn">Play Again</button>
       </div>
@@ -58,6 +66,7 @@
         <button id="t-right" class="touch-btn">▶</button>
       </div>
       <div class="touch-side">
+        <button id="t-shoot" class="touch-btn wide">FIRE</button>
         <button id="t-jump" class="touch-btn wide">JUMP</button>
       </div>
     </div>
