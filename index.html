@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ember's Quest</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="game-wrap">
+    <canvas id="game" width="960" height="540"></canvas>
+
+    <div id="hud">
+      <div class="hud-item">SCORE <span id="hud-score">0</span></div>
+      <div class="hud-item">◆ <span id="hud-gems">0</span></div>
+      <div class="hud-item">LIVES <span id="hud-lives">3</span></div>
+      <div class="hud-item">TIME <span id="hud-time">400</span></div>
+      <div class="hud-item">WORLD <span id="hud-world">1-1</span></div>
+    </div>
+
+    <div id="overlay" class="screen">
+      <div class="panel">
+        <h1>EMBER'S QUEST</h1>
+        <p class="subtitle">A fire-fox adventure</p>
+        <div class="hero-preview" id="hero-preview"></div>
+        <p class="hint">Arrow Keys / A D to move &nbsp;•&nbsp; Space / W / Up to jump &nbsp;•&nbsp; Hold jump for higher leaps<br>Stomp critters, collect gems, ride the flag pole home.</p>
+        <button id="start-btn">Start Game</button>
+        <p class="hint small">P to pause &nbsp;•&nbsp; R to restart anytime</p>
+      </div>
+    </div>
+
+    <div id="pause-screen" class="screen hidden">
+      <div class="panel">
+        <h1>PAUSED</h1>
+        <button id="resume-btn">Resume</button>
+      </div>
+    </div>
+
+    <div id="gameover-screen" class="screen hidden">
+      <div class="panel">
+        <h1>GAME OVER</h1>
+        <p class="subtitle" id="final-score">Score: 0</p>
+        <button id="retry-btn">Try Again</button>
+      </div>
+    </div>
+
+    <div id="win-screen" class="screen hidden">
+      <div class="panel">
+        <h1>WORLD CLEARED!</h1>
+        <p class="subtitle" id="win-score">Score: 0</p>
+        <button id="win-retry-btn">Play Again</button>
+      </div>
+    </div>
+
+    <div id="touch-controls">
+      <div class="touch-side">
+        <button id="t-left" class="touch-btn">◀</button>
+        <button id="t-right" class="touch-btn">▶</button>
+      </div>
+      <div class="touch-side">
+        <button id="t-jump" class="touch-btn wide">JUMP</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/game.js"></script>
+</body>
+</html>
