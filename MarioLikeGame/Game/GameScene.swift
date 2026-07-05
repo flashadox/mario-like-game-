@@ -402,7 +402,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func updateHUD() {
         scoreLabel.text = "SCORE \(score)"; gemLabel.text = "GEMS \(gems)"; livesLabel.text = "LIVES \(lives)"
         worldLabel.text = "WORLD \(world + 1)-1"; timeLabel.text = "TIME \(max(0, Int(timeLeft.rounded())))"
-        if let boss = bossNode, let data = boss.userData, boss.parent != nil { bossLabel.text = "\(worlds[world].boss) \(max(0, int(data["hp")))/\(int(data["max"]))" } else { bossLabel.text = "" }
+        if let boss = bossNode, let data = boss.userData, boss.parent != nil { bossLabel.text = "\(worlds[world].boss) \(max(0, int(data[\"hp\"])))/\(int(data[\"max\"]))" } else { bossLabel.text = "" }
     }
 
     private func say(_ text: String, duration: TimeInterval = 1.2) {
