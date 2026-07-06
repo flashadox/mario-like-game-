@@ -69,6 +69,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var jump = false
     private var fire = false
     private var tapFire = false
+    private var hitStopUntil: TimeInterval = 0
+    private var dustTimer: TimeInterval = 0
 
     override func didMove(to view: SKView) {
         view.isMultipleTouchEnabled = true
@@ -79,7 +81,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     override func didChangeSize(_ oldSize: CGSize) {
         layoutHUD()
-        centerCamera()
+        centerCamera(smooth: false)
     }
 
     func setMovingLeft(_ isMoving: Bool) { left = isMoving }
@@ -109,7 +111,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     override func update(_ currentTime: TimeInterval) {
         let dt = lastUpdate == 0 ? 0 : min(currentTime - lastUpdate, 1 / 24)
         lastUpdate = currentTime
-        guard phase == "play" else { centerCamera(); return }
+        guard phase == "play" else { centerCamera(smooth: false); return }
+        if currentTime < hitStopUntil { return }
+        if physicsWorld.speed == 0 { physicsWorld.speed = 1 }
         invincible = max(0, invincible - dt)
         fireCooldown = max(0, fireCooldown - dt)
         timeLeft -= dt
@@ -118,8 +122,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         moveEnemies(dt, time: currentTime)
         moveBoss(dt)
         moveShots(dt)
-        keepInWorld()
+        keepInWorld(dt)
         updateHUD()
+    }
+
+    private func triggerHitStop(_ duration: TimeInterval) {
+        hitStopUntil = max(hitStopUntil, lastUpdate + duration)
+        physicsWorld.speed = 0
     }
 
     func didBegin(_ contact: SKPhysicsContact) {
@@ -130,7 +139,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let other = playerBody === a ? b : a
         switch other.categoryBitMask {
         case Cat.solid, Cat.gate:
-            if (player.physicsBody?.velocity.dy ?? 0) <= 100 { grounded = true }
+            let vy = player.physicsBody?.velocity.dy ?? 0
+            if vy <= 100 {
+                if !grounded && vy < -300 {
+                    spawnDust(at: CGPoint(x: player.position.x, y: player.position.y - player.size.height / 2), count: 8, speed: 130)
+                }
+                grounded = true
+            }
         case Cat.gem:
             other.node?.removeFromParent(); gems += 1; score += 50
         case Cat.berry:
@@ -163,8 +178,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         grounded = false; lastUpdate = 0; if !keepStats { powered = false }
         enemies.removeAll(); bullets.removeAll(); projectiles.removeAll(); gates.removeAll(); bossNode = nil
         left = false; right = false; jump = false; fire = false; tapFire = false
+        hitStopUntil = 0; dustTimer = 0; physicsWorld.speed = 1
         backgroundColor = theme.sky
         drawBackdrop(theme); setupCamera(); drawLevel(theme); drawPickups(); drawEnemies(theme); drawBoss(theme); drawFlag(); spawnPlayer(at: CGPoint(x: 120, y: 130))
+        centerCamera(smooth: false)
         updateHUD(); say("World \(world + 1)-1  \(theme.name)", duration: 1.2)
     }
 
@@ -299,9 +316,24 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         player.xScale = facing
         body.velocity.dx = body.velocity.dx + min(max(desired - body.velocity.dx, -3_200 * CGFloat(dt)), 3_200 * CGFloat(dt))
         if abs(body.velocity.dy) > 110 { grounded = false }
-        if jump && grounded { body.velocity.dy = powered ? 780 : 730; grounded = false }
+        if jump && grounded {
+            body.velocity.dy = powered ? 780 : 730
+            grounded = false
+            spawnDust(at: CGPoint(x: player.position.x, y: player.position.y - player.size.height / 2), count: 5, speed: 90)
+        }
         if !jump && body.velocity.dy > 340 { body.velocity.dy *= 0.9 }
         if (fire || tapFire) && fireCooldown <= 0 { shoot(); tapFire = false }
+
+        if grounded && abs(body.velocity.dx) > 150 {
+            dustTimer -= dt
+            if dustTimer <= 0 {
+                dustTimer = 0.12
+                let footX = player.position.x - facing * 10
+                spawnDust(at: CGPoint(x: footX, y: player.position.y - player.size.height / 2), count: 2, speed: 40)
+            }
+        } else {
+            dustTimer = 0
+        }
     }
 
     private func shoot() {
@@ -342,18 +374,23 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         projectiles.removeAll { $0.parent == nil }
     }
 
-    private func keepInWorld() {
+    private func keepInWorld(_ dt: TimeInterval) {
         player.position.x = min(max(player.position.x, 26), worldWidth - 34)
         if player.position.x > 70 * tile { checkpointX = max(checkpointX, 70 * tile) }
         if player.position.x > 150 * tile { checkpointX = max(checkpointX, 150 * tile) }
         if player.position.y < -110 { loseLife("Try again") }
-        centerCamera()
+        centerCamera(smooth: true, dt: dt)
     }
 
     private func bulletHit(_ bulletBody: SKPhysicsBody, _ other: SKPhysicsBody) -> Bool {
         guard bulletBody.categoryBitMask == Cat.bullet, let bullet = bulletBody.node else { return false }
         switch other.categoryBitMask {
-        case Cat.enemy: bullet.removeFromParent(); other.node?.removeFromParent(); score += 100; return true
+        case Cat.enemy:
+            bullet.removeFromParent()
+            if let enemyNode = other.node { spawnDust(at: enemyNode.position, count: 6, speed: 140); enemyNode.removeFromParent() }
+            score += 100
+            triggerHitStop(0.025)
+            return true
         case Cat.boss: bullet.removeFromParent(); damageBoss(1); return true
         case Cat.solid, Cat.gate: bullet.removeFromParent(); return true
         default: return false
@@ -363,6 +400,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func stompOrHurt(_ node: SKNode?, bounce: CGFloat, points: Int) {
         guard let node, node.parent != nil else { return }
         if (player.physicsBody?.velocity.dy ?? 0) < -70 && player.position.y > node.position.y + 18 {
+            spawnDust(at: node.position, count: 6, speed: 140)
+            triggerHitStop(0.025)
             node.removeFromParent(); score += points; player.physicsBody?.velocity.dy = bounce
         } else { hurtPlayer() }
     }
@@ -370,11 +409,19 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func damageBoss(_ amount: Int) {
         guard let boss = bossNode, let data = boss.userData else { return }
         let hp = int(data["hp"]) - amount; data["hp"] = hp
-        if hp <= 0 { score += 1_000; boss.removeFromParent(); bossNode = nil; gates.forEach { $0.removeFromParent() }; gates.removeAll(); say("Gate open") }
+        triggerHitStop(0.04)
+        spawnDust(at: boss.position, count: 5, speed: 130)
+        if hp <= 0 {
+            score += 1_000
+            triggerHitStop(0.15)
+            spawnDust(at: boss.position, count: 18, speed: 220)
+            boss.removeFromParent(); bossNode = nil; gates.forEach { $0.removeFromParent() }; gates.removeAll(); say("Gate open")
+        }
     }
 
     private func hurtPlayer() {
         guard invincible <= 0, phase == "play" else { return }
+        triggerHitStop(0.05)
         if powered { powered = false; invincible = 1.6; spawnPlayer(at: player.position); say("Armor cracked"); return }
         loseLife("Ouch")
     }
@@ -382,8 +429,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func loseLife(_ text: String) {
         guard phase == "play" else { return }
         lives -= 1
+        triggerHitStop(0.09)
         if lives <= 0 { phase = "dead"; player.physicsBody?.velocity = .zero; say("Game over", duration: 10) }
-        else { powered = false; invincible = 1.6; spawnPlayer(at: CGPoint(x: checkpointX, y: groundTop + 64)); say(text) }
+        else {
+            powered = false; invincible = 1.6
+            spawnPlayer(at: CGPoint(x: checkpointX, y: groundTop + 64))
+            centerCamera(smooth: false)
+            say(text)
+        }
     }
 
     private func finishWorld() {
@@ -393,10 +446,20 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         else { phase = "done"; say("You saved Ember", duration: 10) }
     }
 
-    private func centerCamera() {
-        guard camera != nil else { return }
+    private func cameraTarget() -> CGPoint {
         let hw = max(size.width / 2, 1), hh = max(size.height / 2, 1)
-        cameraNode.position = CGPoint(x: min(max(player.position.x, hw), max(hw, worldWidth - hw)), y: min(max(player.position.y + 44, hh), max(hh, 560 - hh)))
+        return CGPoint(x: min(max(player.position.x, hw), max(hw, worldWidth - hw)), y: min(max(player.position.y + 44, hh), max(hh, 560 - hh)))
+    }
+
+    private func centerCamera(smooth: Bool, dt: TimeInterval = 0) {
+        guard camera != nil else { return }
+        let target = cameraTarget()
+        guard smooth else { cameraNode.position = target; return }
+        let factor = min(1, CGFloat(dt) * 7)
+        cameraNode.position = CGPoint(
+            x: cameraNode.position.x + (target.x - cameraNode.position.x) * factor,
+            y: cameraNode.position.y + (target.y - cameraNode.position.y) * factor
+        )
     }
 
     private func updateHUD() {
@@ -422,6 +485,22 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func face(_ node: SKSpriteNode) {
         for x in [-7, 7] { let eye = SKShapeNode(circleOfRadius: node.size.width > 60 ? 5 : 3); eye.fillColor = .red; eye.strokeColor = .clear; eye.position = CGPoint(x: CGFloat(x), y: node.size.height * 0.22); node.addChild(eye) }
+    }
+
+    private func spawnDust(at point: CGPoint, count: Int = 4, speed: CGFloat = 70) {
+        for _ in 0..<count {
+            let angle = CGFloat.random(in: (0.15 * .pi)...(0.85 * .pi))
+            let dust = SKShapeNode(circleOfRadius: CGFloat.random(in: 2...4))
+            dust.fillColor = SKColor(red: 0.82, green: 0.78, blue: 0.7, alpha: 0.55)
+            dust.strokeColor = .clear
+            dust.position = point
+            dust.zPosition = 55
+            addChild(dust)
+            let dx = cos(angle) * speed * CGFloat.random(in: 0.4...1.0)
+            let dy = sin(angle) * speed * CGFloat.random(in: 0.3...0.8)
+            let group = SKAction.group([.moveBy(x: dx, y: dy, duration: 0.3), .fadeOut(withDuration: 0.32)])
+            dust.run(.sequence([group, .removeFromParent()]))
+        }
     }
 
     private func body(_ cat: UInt32, _ a: SKPhysicsBody, _ b: SKPhysicsBody) -> SKPhysicsBody? {
